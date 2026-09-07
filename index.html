@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADRON Beauty</title>
+<style>
+body{margin:0;background:#fff7f8;color:#4b3039;font-family:Arial,sans-serif}main{max-width:620px;margin:auto;padding:18px}
+.hero{text-align:center;padding:20px}.logo{font:46px Georgia}.muted{color:#806a72}
+.card,.offer{background:#fff;border-radius:20px;padding:18px;margin:13px 0;box-shadow:0 5px 20px #6d445012}
+.offer{background:#f4dce3;text-align:center;font-weight:bold}.service{display:grid;grid-template-columns:25px 1fr 65px;gap:8px;align-items:center;padding:11px 0;border-bottom:1px solid #eee}
+input,select,textarea{width:100%;padding:11px;border:1px solid #ead9de;border-radius:10px;box-sizing:border-box;margin:4px 0 10px}button{width:100%;padding:13px;border:0;border-radius:12px;background:#b76e83;color:#fff;font-weight:bold;cursor:pointer}
+.bill{background:#fff4f6;padding:14px;border-radius:14px}.row{display:flex;justify-content:space-between;margin:7px}.final{border-top:1px solid #ead9de;padding-top:10px;font-size:19px;font-weight:bold}.code{text-align:center;font-weight:bold;background:#fff4f6;padding:13px;border-radius:12px}.note{font-size:12px;color:#806a72}
+</style></head><body><main>
+<div class="hero"><div class="logo">ADRON</div><div class="muted">BEAUTY • CARE • CONVENIENCE</div><p>Beauty services at your doorstep 🏠</p></div>
+<div class="offer">🎓 STUDENT SPECIAL • 👭 3+ PEOPLE / ₹600+ HOME SERVICE</div>
+<div class="card"><h2>💇 Services</h2>
+<div class="service"><input class="svc" type="checkbox" data-name="Eyebrow" data-price="50"><span>Eyebrow — ₹50</span><input class="qty" type="number" min="1" value="1"></div>
+<div class="service"><input class="svc" type="checkbox" data-name="Hair Styling" data-price="250"><span>Hair Styling — ₹250</span><input class="qty" type="number" min="1" value="1"></div>
+<div class="service"><input class="svc" type="checkbox" data-name="Basic Facial" data-price="400"><span>Basic Facial — ₹400</span><input class="qty" type="number" min="1" value="1"></div>
+<div class="service"><input class="svc" type="checkbox" data-name="Party Makeup" data-price="800"><span>Party Makeup — ₹800</span><input class="qty" type="number" min="1" value="1"></div>
+</div>
+<div class="card"><h2>🎟️ Referral</h2><p>Your unique referral code is generated with your first booking.</p><div class="code" id="code">Generated after booking</div><p class="note">You cannot use your own referral code. A successful referral gives the referrer ₹10 OFF on their next order.</p></div>
+<div class="card"><h2>📅 Book Now</h2>
+<label>Name</label><input id="name">
+<label>WhatsApp Number</label><input id="phone" inputmode="tel">
+<label>Student?</label><select id="student"><option value="0">No</option><option value="10">Yes — 10% off</option></select>
+<label>First booking?</label><select id="first"><option value="0">No</option><option value="10">Yes — 10% off</option></select>
+<label>Friend's referral code (optional)</label><input id="ref" placeholder="ADRON-XXXX-XXXX">
+<label>Date</label><input id="date" type="date"><label>Time</label><input id="time" type="time"><label>Area / Address</label><textarea id="address"></textarea>
+<div class="bill"><div class="row"><span>Subtotal</span><b id="base">₹0</b></div><div class="row"><span>Discount</span><b id="disc">-₹0</b></div><div class="row final"><span>Total</span><span id="total">₹0</span></div></div>
+<button id="book">Book & Continue to WhatsApp 💬</button><p class="note">Payment is handled directly with ADRON. Your payment status is updated by the ADRON admin after verification.</p>
+</div></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="PASTE_YOUR_SUPABASE_PROJECT_URL";
+const SUPABASE_ANON_KEY="PASTE_YOUR_SUPABASE_ANON_KEY";
+const ADRON_WHATSAPP="919999999999"; // CHANGE THIS
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const money=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+function calc(){let sub=0;document.querySelectorAll(".svc:checked").forEach(x=>sub+=+x.dataset.price*Math.max(1,+x.parentElement.querySelector(".qty").value||1));let rate=Math.max(+student.value,+first.value);let d=sub*rate/100,t=sub-d;base.textContent=money(sub);disc.textContent="-"+money(d);total.textContent=money(t);return{sub,discount:d,total:t}}
+document.querySelectorAll(".svc,.qty,#student,#first").forEach(x=>x.addEventListener("input",calc));calc();
+book.onclick=async()=>{
+ let c=calc(),items=[...document.querySelectorAll(".svc:checked")].map(x=>({name:x.dataset.name,price:+x.dataset.price,quantity:Math.max(1,+x.parentElement.querySelector(".qty").value||1)}));
+ if(!name.value.trim()||!phone.value.trim()||!items.length||!date.value||!time.value||!address.value.trim()){alert("Please complete all required details and select at least one service.");return}
+ book.disabled=true;book.textContent="Saving booking…";
+ let {data,error}=await sb.rpc("create_booking",{p_name:name.value.trim(),p_phone:phone.value.replace(/\D/g,""),p_items:items,p_student:student.value==="10",p_first_booking:first.value==="10",p_referral_code:ref.value.trim().toUpperCase()||null,p_date:date.value,p_time:time.value,p_address:address.value.trim()});
+ if(error){alert(error.message);book.disabled=false;book.textContent="Book & Continue to WhatsApp 💬";return}
+ code.textContent=data.customer_referral_code;
+ let text=items.map(x=>`${x.name} x${x.quantity} = ₹${x.price*x.quantity}`).join("\n");
+ let msg=`Hi ADRON BEAUTY! 💗\n\nNEW BOOKING\nBooking ID: ${data.id}\nName: ${data.customer_name}\nWhatsApp: ${data.customer_phone}\n\nServices:\n${text}\n\nDate: ${data.booking_date}\nTime: ${data.booking_time}\nAddress: ${data.address}\nReferral used: ${data.referral_code_used||"None"}\nMy ADRON referral code: ${data.customer_referral_code}\n\nSubtotal: ${money(data.subtotal)}\nDiscount: -${money(data.discount_amount)}\nTOTAL: ${money(data.total_amount)}\n\nPAYMENT STATUS: PENDING\nPlease confirm my booking.`;
+ window.open("https://wa.me/"+ADRON_WHATSAPP+"?text="+encodeURIComponent(msg),"_blank");
+ book.disabled=false;book.textContent="Booking saved ✓";
+};
+</script></body></html>
